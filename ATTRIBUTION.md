@@ -2,7 +2,7 @@
 
 ## Upstream
 
-**VectorCraft** — <https://github.com/storytold/vectorcraft> — pinned here at `2ac3ba2b866ad9d34b2252dd8024f73e34f4b2b8`
+**VectorCraft** — <https://github.com/storytold/vectorcraft> — pinned here at `68b68a30acad9b3d8a72802b35f43b82e2bd7d3a` (v0.18.0)
 (version `0.9.0`).
 
 Upstream is dual-licensed **Apache-2.0 OR MIT**. Both licence texts are reproduced in this

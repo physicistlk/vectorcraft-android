@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-10-30 — The system clipboard (text)
+
+| | |
+|---|---|
+| APK | `vectorcraft-0.18.0-arm64-v8a-20261030.apk` — sha256 in `SHA256SUMS.txt` beside the build |
+| Package | `ai.storyteller.vectorcraft` — versionName `0.18.0`, minSdk 26, targetSdk 35 |
+| ABI | `arm64-v8a` only |
+
+### Changed
+- **The system clipboard works for text (`src/clipboard.rs`).** Ctrl+C/X/V now produce
+  `Event::Copy`/`Cut`/`Paste` (the Android backend never reports modifiers, so `egui-winit` never
+  did), Paste reads `ClipboardManager` through JNI, and `OutputCommand::CopyText` is written back
+  with `ClipData.newPlainText`.
+- **`Services::clipboard_read` and `Services::system_clipboard` are wired**, the latter as a
+  text-only `SystemClipboard`: the TEXT flavour is written and read, Paste's enablement answers for
+  text, and a copy with no text flavour (a shape, with Copy as SVG off) writes nothing and is not an
+  error. SVG/PDF/PNG copies still live only on VectorCraft's own clipboard.
+
+## Unreleased — re-pinned to upstream 0.18.0, Android 16 (16 KB page size)
+
+| | |
+|---|---|
+| Upstream pin | `68b68a30acad9b3d8a72802b35f43b82e2bd7d3a` (upstream `0.18.0`) — was `2ac3ba2` (`0.9.0`) |
+| Package | `ai.storyteller.vectorcraft` — versionName `0.18.0`, minSdk 26, targetSdk 35 |
+| ABI | `arm64-v8a` only |
+| ELF page alignment | `0x4000` (16 KB) — Android 16 compatible |
+
+### Changed
+- **The upstream pin moved from 0.9.0 to 0.18.0.** Still no upstream file is changed; the whole
+  port is the shell crate.
+- **Android 16 page-size compatibility.** The native library is linked with
+  `-Wl,-z,max-page-size=16384`, so every `LOAD` segment is 16 KB aligned.
+
+### Fixed
+- **`FilePick::filters` changed shape upstream** — from borrowed `&[(&str, &[&str])]` to an owned
+  `Vec<FileFilter>`. The picker reads both shapes now.
+- **`SheetApp::raw_input_hook` takes the context** upstream; the shell forwards it.
+
+
 ## v0.1.1 — 2026-10-13 (scrolling, modifiers, fonts, picker wording)
 
 | | |

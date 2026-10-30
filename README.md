@@ -6,7 +6,7 @@ and egui interface, packaged as a NativeActivity APK for sideloading on arm64 de
 | | |
 |---|---|
 | Upstream project | [`storytold/vectorcraft`](https://github.com/storytold/vectorcraft) — Apache-2.0 OR MIT |
-| Pinned commit | `2ac3ba2` (upstream version `0.9.0`) |
+| Pinned commit | `68b68a30` (upstream version `0.18.0`) |
 | Android package | `ai.storyteller.vectorcraft` |
 | Published APK | `vectorcraft-0.9.0-arm64-v8a-20261013.apk` — 29.6 MB, arm64-v8a, signed (release **v0.1.1**, 2026-10-13) |
 | APK sha256 | `c7848549067eb1192e7935f45cdbf91490f3366ccfdd73c5d44ce1236f219aa6` |
@@ -37,7 +37,7 @@ JDK 21, and `cargo install cargo-apk`.
 ```bash
 git clone https://github.com/storytold/vectorcraft.git
 cd vectorcraft
-git fetch --depth 1 origin 2ac3ba2b866ad9d34b2252dd8024f73e34f4b2b8
+git fetch --depth 1 origin 68b68a30acad9b3d8a72802b35f43b82e2bd7d3a
 git checkout FETCH_HEAD                        # the exact commit this port targets
 # this port changes no upstream file, so there is no patch to apply
 cp -r /path/to/vectorcraft-android apps/             # the shell crate from this repository
@@ -75,7 +75,7 @@ A tick means the check was *run*, not inferred; the wording says how far it goes
 | No upstream file is changed | the port is only `apps/vectorcraft-android/`; there is no patch to apply | n/a |
 | The assembled tree equals the tree the APK was built from | file-by-file SHA-256 (line endings normalised) over every patched file and every file of the port crate | ✅ 10 files identical, none differing |
 | The port crate compiles for Android | `cargo check -p vectorcraft-android --target aarch64-linux-android`, run in a tree assembled from scratch (fresh `git fetch` of the pin, patch applied, port crate copied in) | ✅ exit 0 |
-| The port crate's own tests | `cargo test -p vectorcraft-android` in the freshly assembled tree | ✅ 13/13 pass |
+| The port crate's own tests | `cargo test -p vectorcraft-android` in the freshly assembled tree | ✅ 22/22 pass |
 | APK is signed and is the right artifact | `apksigner verify --verbose`, `aapt2 dump badging`, sha256 | ✅ v2/v3 signatures true, `native-code: 'arm64-v8a'`, package `ai.storyteller.vectorcraft` |
 | Behaviour on real hardware | hand-testing on the porter's arm64 tablet | ⚠️ the fixes below were found and driven by that testing; each published binary is not individually re-verified here |
 
@@ -85,13 +85,14 @@ fixes. There is no automated device test in this repository.
 
 ## Known gaps
 
-- **No modifier keys.** Ctrl/Shift/Alt combinations do nothing on this build, and Shift-click does
-  not extend a selection: the platform reports no modifiers and this port does not synthesise them
-  (its siblings do, see `modifiers.rs` there).
+- **No two-finger scrolling.** The Android backend sends no wheel events and this port has no bridge
+  from a two-finger drag to one, so the canvas does not scroll that way.
 - **Preferences survive only a clean exit.** They are written when the app reaches its quit state, so
   a swipe from Recents can lose UI state including the recent-documents list.
 - **One window at a time** — no *New Window*.
 - **No audio** — `cpal` has no Android backend here.
+- **The system clipboard carries text only.** Copy/Paste of text crosses the app boundary; SVG, PDF
+  and PNG copies stay inside VectorCraft.
 - **Runtime verification is the weakest in this set.** The APK was not re-tested on a device while
   publishing; see *Verification status* in the README for exactly what was checked.
 

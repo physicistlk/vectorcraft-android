@@ -1,17 +1,124 @@
 # Port notes — VectorCraft on Android
 
 Upstream: [`storytold/vectorcraft`](https://github.com/storytold/vectorcraft) @
-`2ac3ba2b866ad9d34b2252dd8024f73e34f4b2b8` (v0.9.0)
-Published APK: `vectorcraft-0.9.0-arm64-v8a-fonts.apk`
+`68b68a30acad9b3d8a72802b35f43b82e2bd7d3a` (v0.18.0)
+Published APK: `vectorcraft-0.9.0-arm64-v8a-fonts.apk` (the v0.1.1 release, built from v0.9.0)
 
-**No upstream file is changed.** VectorCraft's UI crate already exposes the seams this port needs, so
-the whole thing is the shell crate `apps/vectorcraft-android/`: `src/lib.rs` (379 lines) is the shell,
+**One upstream file is changed.** `Cargo.toml` resolves `winit` from `vendor/winit` instead of
+the git revision, so the Android backend forwards trackpad scroll and stylus/mouse hover (see the
+2026-10-30 section below). Everything else the port needs lives in `apps/vectorcraft-android/`: `src/lib.rs` (379 lines) is the shell,
 the entry point and the `Services` implementation, and `src/file_picker.rs` (709 lines) is the in-app
 picker *and* the font registration. There is deliberately nothing in `patches/`.
 
 This port predates the sibling ports in this set (PhotoCraft, WordCraft, PdfCraft, GridCraft,
 DeckCraft), and the gaps listed at the end of this file are the reason the later ones are shaped the
 way they are.
+
+## 2026-10-30 — Trackpad wheel + pen hover (`vendor/winit`)
+
+This port previously used the git winit and changed **no** upstream file. It now vendors the
+same patched winit the other ports ship (copied into `vendor/winit/`, with `Cargo.toml`
+resolving winit from it), so the backend forwards `MotionAction::Scroll` and
+`MotionAction::HoverMove` to `MouseWheel` and `CursorMoved`. This is the first upstream file
+this port changes; the patch is no longer empty.
+
+## 2026-10-30 — Flush preferences on suspend (`raw_input_hook`)
+
+A lost-focus frame now calls `save_prefs`, so a swipe from Recents (or a paused Activity being
+killed) no longer loses UI state including the recent-documents list.
+
+## 2026-10-30 — Open-with and share intents (`src/intents.rs`)
+
+**The complaint:** a document tapped in a file manager, or shared from another app, never reached
+VectorCraft; and there was no way to hand the current document to another app.
+
+`src/intents.rs` covers the half that does not need `startActivityForResult`:
+
+- **Incoming `ACTION_VIEW`** — the launching URI is read at startup and copied out of a
+  `content://` URI into the cache directory; the shell opens it on its first frame (`io::open_path`).
+- **Incoming `ACTION_SEND`** — `EXTRA_TEXT` and `EXTRA_STREAM` are handled the same way.
+- **Outgoing `ACTION_SEND`** — `intents::share_text` starts a chooser; `share_file` is provided but
+  needs a `FileProvider` entry to work on Android 7+.
+
+The launching intent is read in `android_main` and consumed once in `Shell::logic`.
+
+**Scope:** opening a file handed to the app, and sharing text. SAF pickers remain deferred (no
+`startActivityForResult` in `android-activity` 0.6.1); the in-app picker is still the way to open
+or save.
+
+**Checked:** the module's host test passes, the crate compiles for `aarch64-linux-android`, and the
+host suite is 23/23. The JNI intent path has not run on a device.
+
+## 2026-10-30 — The system clipboard (`src/clipboard.rs`)
+
+**The complaint:** copy and paste worked only *inside* the app; text could not cross the app
+boundary. The Edit menu's Paste was also always disabled, because nothing could answer whether the
+clipboard had anything.
+
+Two causes, both fixed here:
+
+- **winit's Android backend has no clipboard**, so `egui-winit` fell back to its in-app simulated
+  clipboard.
+- **The backend never reports modifiers** (see *Modifier keys* below), and `egui-winit` decides
+  Ctrl+C/X/V is a clipboard shortcut from its own modifier state. On Android the three keys arrived
+  as ordinary `Event::Key` presses, so `Event::Copy`/`Cut`/`Paste` were never produced.
+
+`src/clipboard.rs` supplies the same four pieces as its siblings, plus VectorCraft's format-aware
+trait:
+
+- `install(&app)` — this thread's Activity handle, captured before `run_native`.
+- `shortcuts(raw)` — in `raw_input_hook`, after the modifier bridge: a plain Ctrl+C/X/V becomes
+  `Event::Copy`/`Cut`/`Paste` and the press is consumed, as on the desktop. Ctrl+V reads the
+  **system** clipboard and pushes nothing when it is empty. Ctrl+Shift/Ctrl+Alt go to the app.
+- `publish(ctx)` — after the app's `ui`: every `OutputCommand::CopyText` this frame is written with
+  `ClipData.newPlainText` + `setPrimaryClip`, and left in the command list so egui-winit's in-app
+  copy still happens.
+- `text()` — the read half, wired in twice: `Services::clipboard_read` (what Paste's menu item and
+  its enablement ask) and `Services::system_clipboard`, a text-only `SystemClipboard`.
+
+**Why `SystemClipboard` and not just the two text hooks.** VectorCraft's Copy publishes a family of
+flavours (SVG, PDF, PNG, text) and its Paste reads them in a fixed order. The Android implementation
+answers only for text: `write` puts the TEXT flavour on the system clipboard and does nothing when a
+copy has none (a shape with Copy as SVG off — that copy still lives in the in-app clipboard, and
+reporting an error would be a complaint about a copy that worked); `read` returns a text `Flavour`
+when asked for `text/*`; `has` answers the same question for Paste's enablement; `holds_ours`
+compares what it last wrote with what is there now. SVG/PDF/PNG never reach another app on Android,
+but they are still on VectorCraft's own clipboard, so copy-paste inside the app is unchanged.
+
+The JNI side is `ClipboardManager`/`ClipData` directly. A read Android refuses (Android 10+ allows
+reads only while the app is focused) is logged and cleared, and answers "nothing".
+
+**Checked:** eight unit tests plus the app crate's own picker/modifier tests pass on the host, and
+the crate compiles for `aarch64-linux-android`. The JNI path has not run on a device — none was
+connected for this build.
+
+## 0. 2026-10-28 — The port was re-pinned to upstream v0.18.0
+
+The port was re-pointed from upstream `0.9.0` (`2ac3ba2`) to `0.18.0` (`68b68a30`). No upstream
+file was changed at that time — VectorCraft's UI crate still exposes the seams the shell needs
+(`Services::start_pick`, `vectorcraft_text::set_platform_font_files`, `set_app_font_dir`) — so the
+patch is still empty and the whole port is still the shell crate.
+
+Upstream moved a long way (nearly 4 000 commits), and two of its API changes reached the shell:
+
+- **`FilePick::filters` changed shape.** It was `&[(&'static str, &'static [&'static str])]` and is
+  now `Vec<FileFilter>`, where `FileFilter = (String, Vec<String>)` — the labels and extensions are
+  owned, so a host can build them at runtime. The shell's `extensions_of` helper read the old
+  shape; it now has a second helper, `extensions_of_owned`, for the new one. The engine's own
+  `place_filters()` still returns the old shape, so both helpers are live.
+- **`SheetApp::raw_input_hook` takes the context.** Upstream's signature grew a `&egui::Context`
+  parameter, so the shell's `eframe::App::raw_input_hook` forwards it instead of dropping it.
+
+Everything else the shell uses — `Services`, `VectorcraftApp`, `picks::{PickRequest, PickAnswer}`,
+`prefs_dialog::restore`, `graphics::GraphicsLoss`, `place_filters`, `catch_panic`,
+`set_app_font_dir`, `set_platform_font_files` — is still present at `0.18.0` with the same shape.
+`write_atomic` moved from `crates/engine` to `crates/format`, but it is still re-exported through
+`engine::cmd::fileio`, so the shell's import is unchanged.
+
+**Verified:** `cargo check -p vectorcraft-android --target aarch64-linux-android` exits 0 against
+v0.18.0, and the shell crate in this repository is byte-identical to the one the APK was built from.
+
+---
 
 ## 1. The shell crate
 
@@ -120,10 +227,9 @@ needed because `targetSdkVersion 35` puts the app under a transparent status bar
 
 The later ports in this set fixed these; this one has not been reworked since:
 
-- **No modifier tracking.** There is no `src/modifiers.rs` here. winit's Android backend never emits
-  `ModifiersChanged`, and `egui-winit` reads modifiers from that event and nowhere else, so on this
-  build `Ctrl`/`Shift`/`Alt` combinations do nothing and `Shift`-click does not extend a selection.
-  The sibling ports synthesise the modifiers from key events in `raw_input_hook`.
+- **No two-finger scrolling.** There is no `src/touch_scroll.rs` and no wheel bridge, so a two-finger
+  drag does not scroll the canvas. (The modifier tracker this port once lacked is now here, and so is
+  the text clipboard; this one has not been done.)
 - **Preferences are written on the exit path, not while the app runs.** `save_prefs` runs when the app
   reaches its quit state; a swipe from Recents never gets there. The sibling ports write the
   preferences from a change-detected watcher (`prefs_watch`), which is what makes the recent-documents

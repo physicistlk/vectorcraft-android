@@ -89,7 +89,9 @@ use vectorcraft_ui_egui::graphics::GraphicsLoss;
 use vectorcraft_ui_egui::picks::PickRequest;
 use vectorcraft_ui_egui::{FilePick, Services, UiState, VectorcraftApp};
 
+mod clipboard;
 mod file_picker;
+mod intents;
 mod modifiers;
 
 /// The app's private data directory, captured in `android_main` before any service
@@ -143,6 +145,10 @@ fn android_services(shared: Rc<RefCell<file_picker::Shared>>) -> Services {
         pick_folder: Some(Box::new(|| None)),
         // The real dialog: queue the request, draw it with egui, answer on the receiver.
         start_pick: Some(Box::new(move |request: PickRequest| file_picker::start(&shared, request))),
+        // Paste's menu item and its enablement read the system clipboard: plain text here, the
+        // formats (SVG, PDF, PNG) are still the desktop's `system_clipboard` implementation.
+        clipboard_read: Some(Box::new(clipboard::text)),
+        system_clipboard: Some(Box::new(clipboard::SystemClipboard::default())),
         ..Default::default()
     }
 }
@@ -223,6 +229,10 @@ pub fn android_main(app: winit::platform::android::activity::AndroidApp) {
     let data_dir = app.internal_data_path().unwrap_or_else(|| PathBuf::from("."));
     let _ = std::fs::create_dir_all(&data_dir);
     let _ = DATA_DIR.set(data_dir.clone());
+    // The system clipboard goes through the same Activity handle as the rest of the
+    // platform (see `clipboard`).
+    clipboard::install(&app);
+    intents::install(&app);
     init_logging(&data_dir);
     log::info!("VectorCraft {} starting on Android; data dir {}", env!("CARGO_PKG_VERSION"), data_dir.display());
     // The app's external files directory: always readable and writable with no
@@ -290,7 +300,7 @@ pub fn android_main(app: winit::platform::android::activity::AndroidApp) {
                 } else {
                     log::warn!("no wgpu render state");
                 }
-                Ok(Box::new(Shell { inner: app, loss, shared, mods: modifiers::Tracked::default() }))
+                Ok(Box::new(Shell { inner: app, loss, shared, mods: modifiers::Tracked::default(), pending_launch: intents::launch() }))
             }),
         )
     });
@@ -318,6 +328,7 @@ struct Shell {
     /// Shift/Ctrl/Alt, tracked by hand: Android's winit reports no `ModifiersChanged` at all, so
     /// without this every modifier shortcut is dead.
     mods: modifiers::Tracked,
+    pending_launch: Option<intents::LaunchIntent>,
 }
 
 impl Shell {
@@ -350,6 +361,19 @@ impl Shell {
 
 impl eframe::App for Shell {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Some(launch) = self.pending_launch.take() {
+            match launch {
+                intents::LaunchIntent::OpenFile(path) => {
+                    vectorcraft_ui_egui::io::open_path(&mut self.inner, path.to_string_lossy().as_ref());
+                }
+                intents::LaunchIntent::ImportText(text) => {
+                    let path = std::env::temp_dir().join("shared.txt");
+                    if std::fs::write(&path, text).is_ok() {
+                        vectorcraft_ui_egui::io::open_path(&mut self.inner, path.to_string_lossy().as_ref());
+                    }
+                }
+            }
+        }
         if let Some(why) = self.loss.take() {
             // eframe can't give a window a new device: the user saves and starts again.
             let kept = self.inner.graphics_lost(&why);
@@ -363,16 +387,34 @@ impl eframe::App for Shell {
         self.quit_if_asked();
     }
 
-    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
         // Before the app's own hook, so it sees the same frames it would on the desktop.
+        for event in &mut raw.events {
+            if let egui::Event::Key { key, .. } = event
+                && *key == egui::Key::BrowserBack
+            {
+                *key = egui::Key::Escape;
+            }
+        }
         self.mods.apply(raw);
-        self.inner.raw_input_hook(raw);
+        let lost_focus = raw.viewports.values().any(|v| v.focused == Some(false));
+        if lost_focus {
+            save_prefs(&self.inner);
+        }
+        // Then the clipboard keys: egui-winit could not turn them into Copy/Cut/Paste
+        // because the backend never reports Modifiers, so they are still ordinary key
+        // presses here (see `clipboard::shortcuts`).
+        clipboard::shortcuts(raw);
+        self.inner.raw_input_hook(ctx, raw);
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.inner.ui(ui);
         // After the app, so the picker floats above the editor.
         file_picker::draw(ui.ctx(), &self.shared);
+        // After the app: this is the one place that sees egui's CopyText before egui-winit
+        // consumes it, and puts it on the system clipboard (see `clipboard::publish`).
+        clipboard::publish(ui.ctx());
         // File ▸ Exit is a menu click, so it is set during this call: check here, in the same
         // frame, rather than leaving it to the next `logic` — no repaint is guaranteed after a
         // click, and waiting for one is how Exit ends up doing nothing.

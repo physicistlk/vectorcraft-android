@@ -49,6 +49,7 @@ use std::rc::Rc;
 use std::sync::OnceLock;
 use std::sync::mpsc::{Receiver, Sender};
 
+use vectorcraft_ui_egui::FileFilter;
 use vectorcraft_ui_egui::picks::{PickAnswer, PickRequest};
 
 /// The app's external files directory, captured in `android_main`.
@@ -121,10 +122,17 @@ fn extensions_of(filters: &[(&'static str, &'static [&'static str])]) -> Option<
     (!exts.is_empty()).then_some(exts)
 }
 
+/// The same, for the owned filter shape upstream moved to: a label and the extensions
+/// it covers, both owned strings.
+fn extensions_of_owned(filters: &[FileFilter]) -> Option<Vec<String>> {
+    let exts: Vec<String> = filters.iter().flat_map(|(_, e)| e.iter().cloned()).collect();
+    (!exts.is_empty()).then_some(exts)
+}
+
 /// The `Services::start_pick` body: queue the request, return the receiver at once.
 pub fn start(shared: &Rc<RefCell<Shared>>, request: PickRequest) -> Option<Receiver<PickAnswer>> {
     let (kind, extensions, suggested) = match &request {
-        PickRequest::Open(pick) => (Kind::Open, extensions_of(&pick.filters), None),
+        PickRequest::Open(pick) => (Kind::Open, extensions_of_owned(&pick.filters), None),
         PickRequest::OpenMany => {
             let place: Vec<_> = vectorcraft_engine::cmd::fileio::place_filters().collect();
             (Kind::OpenMany, extensions_of(&place), None)
@@ -703,7 +711,7 @@ mod tests {
         let PickRequest::Open(pick) = &asked[0] else {
             panic!("file.open asks to open a file, not {:?}", asked[0]);
         };
-        let exts = extensions_of(&pick.filters).expect("the Open dialog filters offer extensions");
+        let exts = extensions_of_owned(&pick.filters).expect("the Open dialog filters offer extensions");
         assert!(exts.iter().any(|e| e == "ai"), "file.open's filters must offer .ai: {exts:?}");
     }
 }

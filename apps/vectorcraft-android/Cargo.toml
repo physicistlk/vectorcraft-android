@@ -17,6 +17,10 @@ name = "vectorcraft"
 crate-type = ["cdylib"]
 
 [dependencies]
+# The system clipboard (`src/clipboard.rs`) is a JNI call to `ClipboardManager`; jni 0.22 is
+# the version android-activity itself depends on, so this unifies rather than compiling a second
+# layer.
+jni = "0.22"
 vectorcraft-engine = { workspace = true }
 vectorcraft-ui-egui = { workspace = true }
 # Fonts: the shell registers Android's own font files and VectorCraft's Fonts folder
