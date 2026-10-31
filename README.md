@@ -37,7 +37,7 @@ JDK 21, and `cargo install cargo-apk`.
 ```bash
 git clone https://github.com/storytold/vectorcraft.git
 cd vectorcraft
-git fetch --depth 1 origin 68b68a30acad9b3d8a72802b35f43b82e2bd7d3a
+git fetch --depth 1 origin bcebabe3f
 git checkout FETCH_HEAD                        # the exact commit this port targets
 # this port changes no upstream file, so there is no patch to apply
 cp -r /path/to/vectorcraft-android apps/             # the shell crate from this repository

@@ -83,6 +83,7 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 use vectorcraft_engine::Session;
 use vectorcraft_ui_egui::graphics::GraphicsLoss;
@@ -91,6 +92,7 @@ use vectorcraft_ui_egui::{FilePick, Services, UiState, VectorcraftApp};
 
 mod clipboard;
 mod file_picker;
+mod prefs_watch;
 mod intents;
 mod modifiers;
 
@@ -177,6 +179,13 @@ fn save_prefs(app: &VectorcraftApp) {
     if let Ok(bytes) = serde_json::to_vec_pretty(&ui) {
         let _ = write_file(&p.to_string_lossy(), &bytes);
     }
+}
+
+/// Serialize the preferences the way `save_prefs` writes them, for `prefs_watch`.
+fn prefs_bytes(app: &VectorcraftApp) -> Vec<u8> {
+    let mut ui = app.ui.clone();
+    ui.engine_prefs = app.session.prefs.to_json();
+    serde_json::to_vec_pretty(&ui).unwrap_or_default()
 }
 
 /// A minimal file logger, so a sideloaded APK leaves a readable trace.
@@ -300,7 +309,7 @@ pub fn android_main(app: winit::platform::android::activity::AndroidApp) {
                 } else {
                     log::warn!("no wgpu render state");
                 }
-                Ok(Box::new(Shell { inner: app, loss, shared, mods: modifiers::Tracked::default(), pending_launch: intents::launch() }))
+                Ok(Box::new(Shell { inner: app, loss, shared, mods: modifiers::Tracked::default(), prefs: prefs_watch::Writer::new(prefs_file(), PREFS_EVERY), pending_launch: intents::launch() }))
             }),
         )
     });
@@ -319,6 +328,8 @@ pub fn android_main(app: winit::platform::android::activity::AndroidApp) {
 /// (`apps/vectorcraft-web/src/web.rs`): `VectorcraftApp` stays untouched and the
 /// platform-specific layer hangs off the outside. Every method is forwarded, so the
 /// app sees no difference.
+const PREFS_EVERY: Duration = Duration::from_secs(2);
+
 struct Shell {
     inner: VectorcraftApp,
     /// Reported by wgpu when the window's graphics device is lost (a driver reset).
@@ -328,6 +339,7 @@ struct Shell {
     /// Shift/Ctrl/Alt, tracked by hand: Android's winit reports no `ModifiersChanged` at all, so
     /// without this every modifier shortcut is dead.
     mods: modifiers::Tracked,
+    prefs: prefs_watch::Writer,
     pending_launch: Option<intents::LaunchIntent>,
 }
 
@@ -383,6 +395,10 @@ impl eframe::App for Shell {
                 "The graphics device was lost: save your documents and restart VectorCraft"
             });
         }
+        if self.prefs.due() {
+            let bytes = prefs_bytes(&self.inner);
+            self.prefs.store(&bytes);
+        }
         self.inner.logic(ctx);
         self.quit_if_asked();
     }
@@ -400,6 +416,8 @@ impl eframe::App for Shell {
         let lost_focus = raw.viewports.values().any(|v| v.focused == Some(false));
         if lost_focus {
             save_prefs(&self.inner);
+            let bytes = prefs_bytes(&self.inner);
+            self.prefs.store_now(&bytes);
         }
         // Then the clipboard keys: egui-winit could not turn them into Copy/Cut/Paste
         // because the backend never reports Modifiers, so they are still ordinary key

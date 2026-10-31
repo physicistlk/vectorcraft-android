@@ -1,7 +1,7 @@
 # Port notes — VectorCraft on Android
 
 Upstream: [`storytold/vectorcraft`](https://github.com/storytold/vectorcraft) @
-`68b68a30acad9b3d8a72802b35f43b82e2bd7d3a` (v0.18.0)
+`bcebabe3f` (v0.19.0)
 Published APK: `vectorcraft-0.9.0-arm64-v8a-fonts.apk` (the v0.1.1 release, built from v0.9.0)
 
 **One upstream file is changed.** `Cargo.toml` resolves `winit` from `vendor/winit` instead of
@@ -13,6 +13,14 @@ picker *and* the font registration. There is deliberately nothing in `patches/`.
 This port predates the sibling ports in this set (PhotoCraft, WordCraft, PdfCraft, GridCraft,
 DeckCraft), and the gaps listed at the end of this file are the reason the later ones are shaped the
 way they are.
+
+## 2026-10-31 — Preferences written while the app runs (`prefs_watch.rs`)
+
+VectorCraft previously saved its preferences only on the exit path, so a swipe from Recents could
+lose UI state including the recent-documents list. It now carries the same `prefs_watch::Writer`
+the other ports use: `ui.json` is written (atomically, only when it changed, at most every 2 s)
+from `Shell::logic`, and again with `store_now` on a lost-focus frame. `save_prefs` is kept for the
+focus-loss path and for any caller that wants an immediate write.
 
 ## 2026-10-30 — Trackpad wheel + pen hover (`vendor/winit`)
 
@@ -92,7 +100,7 @@ reads only while the app is focused) is logged and cleared, and answers "nothing
 the crate compiles for `aarch64-linux-android`. The JNI path has not run on a device — none was
 connected for this build.
 
-## 0. 2026-10-28 — The port was re-pinned to upstream v0.18.0
+## 0. 2026-10-28 — The port was re-pinned to upstream v0.19.0
 
 The port was re-pointed from upstream `0.9.0` (`2ac3ba2`) to `0.18.0` (`68b68a30`). No upstream
 file was changed at that time — VectorCraft's UI crate still exposes the seams the shell needs
@@ -116,7 +124,7 @@ Everything else the shell uses — `Services`, `VectorcraftApp`, `picks::{PickRe
 `engine::cmd::fileio`, so the shell's import is unchanged.
 
 **Verified:** `cargo check -p vectorcraft-android --target aarch64-linux-android` exits 0 against
-v0.18.0, and the shell crate in this repository is byte-identical to the one the APK was built from.
+v0.19.0, and the shell crate in this repository is byte-identical to the one the APK was built from.
 
 ---
 
