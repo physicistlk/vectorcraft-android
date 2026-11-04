@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-04 — Upstream v0.21.0
+
+| | |
+|---|---|
+| APK | `vectorcraft-0.21.0-arm64-v8a-20261104.apk` — sha256 `5efd4e34b0d1f24daac8517eab8553231a05eca4278b2acbc7d77fc6ba5e801c` |
+| Package | `ai.storyteller.vectorcraft` — versionName `0.21.0`, minSdk 26, targetSdk 35 |
+| ABI | `arm64-v8a` only |
+
+### Changed
+- Updated port to upstream v0.21.0 (pin `11862f61`).
+
 ## 2026-10-30 — The system clipboard (text)
 
 | | |
