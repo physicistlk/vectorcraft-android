@@ -1,14 +1,14 @@
 diff --git a/Cargo.lock b/Cargo.lock
-index 175945108..59c9d0f9f 100644
+index 5c2bdbdbc..7c6a39f36 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
-@@ -6367,6 +6367,21 @@ dependencies = [
+@@ -6369,6 +6369,21 @@ dependencies = [
   "ruzstd",
  ]
  
 +[[package]]
 +name = "vectorcraft-android"
-+version = "0.23.0"
++version = "0.24.1"
 +dependencies = [
 + "eframe",
 + "egui",
@@ -22,9 +22,9 @@ index 175945108..59c9d0f9f 100644
 +]
 +
  [[package]]
- name = "vectorcraft-brush"
- version = "0.23.0"
-@@ -7716,7 +7731,6 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
+ name = "vectorcraft-apischema"
+ version = "0.24.1"
+@@ -7732,7 +7747,6 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
  [[package]]
  name = "winit"
  version = "0.30.13"
@@ -33,10 +33,10 @@ index 175945108..59c9d0f9f 100644
   "ahash",
   "android-activity",
 diff --git a/Cargo.toml b/Cargo.toml
-index 8d008296e..aa8339312 100644
+index b733a0f3b..a28cdc8ab 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -183,4 +183,4 @@ egui_system_font_provider = { git = "https://github.com/storytold/egui.git", rev
+@@ -184,4 +184,4 @@ egui_system_font_provider = { git = "https://github.com/storytold/egui.git", rev
  eframe = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
  egui_demo_lib = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
  egui_inspection = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }

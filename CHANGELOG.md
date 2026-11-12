@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-12 — Upstream v0.24.1
+
+| | |
+|---|---|
+| APK | `vectorcraft-0.24.1-arm64-v8a-20261112.apk` — sha256 `2669cfde9f4987b2fc0a6167dd9a9d6b41e72820644863ce2f7a06c6cc84093f` |
+| Package | `ai.storyteller.vectorcraft` — versionName `0.24.1`, minSdk 26, targetSdk 35 |
+| ABI | `arm64-v8a` only |
+
+### Changed
+- Updated port to upstream v0.24.1 (pin `f4922aa7`).
+- Port patch applied cleanly; only `Cargo.lock` + `Cargo.toml` (winit → `vendor/winit`) tracked changes.
+
 ## 2026-11-09 — Upstream v0.23.0
 
 | | |
