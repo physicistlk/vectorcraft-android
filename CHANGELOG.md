@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-18 — Physical mouse: real secondary click
+
+| | |
+|---|---|
+| APK | `vectorcraft-0.24.1-arm64-v8a-20261118.apk` — sha256 `10dddbd70427386e4455150383c12807dd7fcfcc6bb11917e1ac973d4ccfe713` |
+| Package | `ai.storyteller.vectorcraft` — versionName `0.24.1`, minSdk 26, targetSdk 35 |
+| ABI | `arm64-v8a` only |
+
+### Changed
+- Shared `vendor/winit` fix: a physical mouse's right button is a real secondary click, and
+  long-press-to-context-menu no longer applies to a mouse. Finger input is unchanged.
+- Same upstream version and pin as 2026-11-12 (`f4922aa7`, v0.24.1); no upstream update this round.
+- Port patch unchanged (still only `Cargo.toml` + `Cargo.lock`, winit → `vendor/winit`) and applied cleanly.
+
 ## 2026-11-12 — Upstream v0.24.1
 
 | | |

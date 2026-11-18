@@ -8,8 +8,8 @@ and egui interface, packaged as a NativeActivity APK for sideloading on arm64 de
 | Upstream project | [`storytold/vectorcraft`](https://github.com/storytold/vectorcraft) — Apache-2.0 OR MIT |
 | Pinned commit | `f4922aa7` (upstream version `0.24.1`) |
 | Android package | `ai.storyteller.vectorcraft` |
-| Published APK | `vectorcraft-0.9.0-arm64-v8a-20261013.apk` — 29.6 MB, arm64-v8a, signed (release **v0.1.1**, 2026-10-13) |
-| APK sha256 | `c7848549067eb1192e7935f45cdbf91490f3366ccfdd73c5d44ce1236f219aa6` |
+| Published APK | `vectorcraft-0.24.1-arm64-v8a-20261118.apk` — 52.3 MB, arm64-v8a, signed (2026-11-18) |
+| APK sha256 | `10dddbd70427386e4455150383c12807dd7fcfcc6bb11917e1ac973d4ccfe713` |
 | Upstream files changed | No upstream files changed — the port is `apps/vectorcraft-android/` alone, so there is nothing to apply |
 | New port crate | `apps/vectorcraft-android/` — 1088 lines of Rust plus resources |
 
